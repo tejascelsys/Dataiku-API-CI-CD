@@ -61,42 +61,36 @@ def build_apinode_client(params):
     infra_settings = infra.get_settings().get_raw()
 
     # Case 1: Local Deployer
-    if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
-        api_url = infra_settings['apiNodes'][0]['url']
+    if "apiNodes" in infra_settings and len(infra_settings["apiNodes"]) > 0:
+        api_url = infra_settings["apiNodes"][0]["url"]
         print(f"Using local API node URL: {api_url}")
-        return dataikuapi.APINodeClient(
-            base_uri=api_url,
-            service_id=params["api_service_id"],
-            api_key=params["api"]
+    else:
+        # Case 2: Remote deployer on AKS
+        deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
+        print(f"No local apiNodes found, looking up remote deployment '{deployment_id}'...")
+
+        deployment = next(
+            (d for d in api_deployer.list_deployments() if d.id() == deployment_id),
+            None,
         )
+        if not deployment:
+            raise ValueError(f"Deployment with ID '{deployment_id}' not found!")
 
-    # Case 2: Remote deployer on AKS
-    deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
-    print(f"No local apiNodes found, looking up remote deployment '{deployment_id}'...")
+        print(f"Found deployment '{deployment_id}', fetching live status...")
+        status = deployment.get_status().get_heavy()
 
-    deployment = next(
-        (d for d in api_deployer.list_deployments() if d.id() == deployment_id),
-        None
-    )
-    if not deployment:
-        raise ValueError(f"Deployment with ID '{deployment_id}' not found!")
+        public_url = status.get("publicURL")
+        if not public_url:
+            raise ValueError("Could not determine public URL from deployment status")
 
-    print(f"Found deployment '{deployment_id}', fetching live status...")
-    status = deployment.get_status().get_heavy()
-
-    public_url = status.get("publicURL")
-    if not public_url:
-        raise ValueError(f"Could not determine public URL from deployment status")
-
-    api_url = public_url.rstrip("/")
-    print(f"Using remote API node base URL: {api_url}")
+        api_url = public_url.rstrip("/")
+        print(f"Using remote API node base URL: {api_url}")
 
     return dataikuapi.APINodeClient(
-        base_uri=api_url,
-        service_id=params["api_service_id"],
-        api_key=params["api"]
+        api_url,                       # base URL
+        params["api_service_id"],      # service ID
+        params["api"],                 # API key
     )
-
 
 
 def test_standard_call(params):
