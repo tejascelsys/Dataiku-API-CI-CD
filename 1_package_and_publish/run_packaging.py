@@ -47,6 +47,45 @@ print("Found API Service to package {}".format(api_service))
 # new_version = deployer_service.import_version(version_as_stream)
 # print("New version published as '{}'".format(api_package_id))
 
+# ####################
+# # Create and retrieve an API package
+
+# api_service.create_package(api_package_id)
+# print(f"New package created with name '{api_package_id}'")
+
+# # Download the zip file locally so it can be uploaded to the remote deployer
+# package_filename = f"{api_package_id}.zip"
+# api_service.download_package_to_file(api_package_id, package_filename)
+# print(f"Package downloaded locally as '{package_filename}'")
+
+# ####################
+# # Find the service as known by API Deployer
+
+# api_deployer = client.get_apideployer()
+# deployer_service = None
+# for serv in api_deployer.list_services():
+#     if serv.id() == api_service_id:
+#         print(f"Found existing Deployer API service {api_service_id}")
+#         deployer_service = serv
+# if deployer_service is None:
+#     print(f"Creating missing service {api_service_id}")
+#     deployer_service = api_deployer.create_service(api_service_id)
+
+# ####################
+# # Import the new version to the remote deployer using the zip file
+
+# # with open(package_filename, 'rb') as f:
+# #     version_as_stream = f.read()
+
+# # new_version = deployer_service.import_version(version_as_stream)
+# # Publish ZIP file to remote deployer
+# new_version = deployer_service.import_version_from_file(api_package_id, package_filename)
+# print(f"Package '{api_package_id}' successfully published to remote deployer")
+
+# print(f"New version published as '{api_package_id}'")
+
+
+
 ####################
 # Create and retrieve an API package
 
@@ -59,27 +98,24 @@ api_service.download_package_to_file(api_package_id, package_filename)
 print(f"Package downloaded locally as '{package_filename}'")
 
 ####################
-# Find the service as known by API Deployer
+# Find the service as known by the API Deployer
 
 api_deployer = client.get_apideployer()
 deployer_service = None
 for serv in api_deployer.list_services():
     if serv.id() == api_service_id:
-        print(f"Found existing Deployer API service {api_service_id}")
+        print(f"Found existing Deployer API service '{api_service_id}'")
         deployer_service = serv
+
 if deployer_service is None:
-    print(f"Creating missing service {api_service_id}")
+    print(f"Creating missing service '{api_service_id}'")
     deployer_service = api_deployer.create_service(api_service_id)
 
 ####################
-# Import the new version to the remote deployer using the zip file
+# Import the new version into the remote deployer using the ZIP file
 
-# with open(package_filename, 'rb') as f:
-#     version_as_stream = f.read()
+with open(package_filename, 'rb') as f:
+    new_version = deployer_service.import_version(f)
 
-# new_version = deployer_service.import_version(version_as_stream)
-# Publish ZIP file to remote deployer
-new_version = deployer_service.import_version_from_file(api_package_id, package_filename)
 print(f"Package '{api_package_id}' successfully published to remote deployer")
-
-print(f"New version published as '{api_package_id}'")
+print(f"New version imported as '{api_package_id}'")
