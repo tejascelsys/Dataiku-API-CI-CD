@@ -51,12 +51,10 @@ import dataikuapi
 import requests
 import inspect
 
-import dataikuapi
-
 def build_apinode_client(params):
     """
     Build an APINodeClient for both local and remote deployer setups.
-    Automatically extracts dynamic runtime URL for AKS deployers.
+    Handles AKS-based API nodes by extracting only the base URL.
     """
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
@@ -82,7 +80,7 @@ def build_apinode_client(params):
 
         print(f"Found deployment '{deployment_id}', fetching live status...")
 
-        # Get heavy status for runtime info
+        # Get heavy status
         status = deployment.get_status().get_heavy()
         public_url = status.get("publicURL")
         should_add_path = status.get("shouldAddPublicApiPath", False)
@@ -90,14 +88,12 @@ def build_apinode_client(params):
         if not public_url:
             raise ValueError("Could not determine public URL from deployment status")
 
-        # Construct full endpoint URL
-        if should_add_path:
-            api_url = f"{public_url}/public/api/v1/{params['api_service_id']}/{params['api_endpoint_id']}"
-        else:
-            api_url = public_url
+        # Base URL only (without /public/api/... because client will add that)
+        api_url = public_url.rstrip('/')
+        print(f"Using remote API node base URL: {api_url}")
 
-        print(f"Using remote API node URL: {api_url}")
         return dataikuapi.APINodeClient(api_url, params["api"])
+
 
 
 
