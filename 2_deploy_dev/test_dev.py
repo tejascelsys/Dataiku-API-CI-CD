@@ -28,25 +28,25 @@ def build_apinode_client(params):
     api_deployer = client_design.get_apideployer()
     infra_settings = api_deployer.get_infra(params["api_dev_infra_id"]).get_settings().get_raw()
 
-    # If using a local deployer (inside Dataiku instance)
+    # If using a local deployer (inside DSS instance)
     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
         api_url = infra_settings['apiNodes'][0]['url']
         print(f"Using local API node URL: {api_url}")
-        # Local deployer uses DSS API key directly
         return dataikuapi.APINodeClient(api_url, params["api"])
-    else:
-        # Remote deployer: construct full endpoint URL
-        api_url = f"{params['host']}/public/api/v1"
-        full_endpoint = f"{api_url}/{params['api_service_id']}/{params['api_endpoint_id']}"
-        print(f"Using remote API endpoint URL: {full_endpoint}")
 
-        # Return client with service_id and API key as token
+    else:
+        # Remote deployer: build full endpoint URL
+        api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
+        print(f"Using remote API service endpoint: {api_url}")
+
+        # Return client with Bearer token + service_id
         return dataikuapi.APINodeClient(
             base_uri=api_url,
-            api_key=params["api"],
+            api_key=params["api"],  # raw token
             service_id=params["api_service_id"],
             extra_headers={"Authorization": f"Bearer {params['api']}"}
         )
+
 
 
 def test_standard_call(params):
