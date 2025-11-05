@@ -74,8 +74,12 @@ if deployer_service is None:
 ####################
 # Import the new version to the remote deployer using the zip file
 
-with open(package_filename, 'rb') as f:
-    version_as_stream = f.read()
+# with open(package_filename, 'rb') as f:
+#     version_as_stream = f.read()
 
-new_version = deployer_service.import_version(version_as_stream)
+# new_version = deployer_service.import_version(version_as_stream)
+# Publish ZIP file to remote deployer
+new_version = deployer_service.import_version_from_file(api_package_id, package_filename)
+print(f"Package '{api_package_id}' successfully published to remote deployer")
+
 print(f"New version published as '{api_package_id}'")
