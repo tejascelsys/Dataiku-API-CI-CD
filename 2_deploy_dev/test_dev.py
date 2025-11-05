@@ -20,9 +20,40 @@ import dataikuapi
 
 #     return dataikuapi.APINodeClient(api_url, params["api"])
 
+# def build_apinode_client(params):
+#     """
+#     Builds APINodeClient, compatible with both local and remote deployer configurations.
+#     """
+#     client_design = dataikuapi.DSSClient(params["host"], params["api"])
+#     api_deployer = client_design.get_apideployer()
+#     infra_settings = api_deployer.get_infra(params["api_dev_infra_id"]).get_settings().get_raw()
+
+#     # If using a local deployer (inside DSS instance)
+#     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
+#         api_url = infra_settings['apiNodes'][0]['url']
+#         print(f"Using local API node URL: {api_url}")
+#         return dataikuapi.APINodeClient(api_url, params["api"])
+
+#     else:
+#         # Remote deployer: build full service-level URL
+#         api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
+#         print(f"Using remote API service endpoint: {api_url}")
+
+#         # Create API Node client with Bearer token auth
+#         return dataikuapi.APINodeClient(
+#             api_url,
+#             params["api"],  # SDK API key = token
+#             params["api_service_id"],  # service ID
+#             {"Authorization": f"Bearer {params['api']}"}  # extra headers
+#         )
+
+
+import dataikuapi
+
 def build_apinode_client(params):
     """
-    Builds APINodeClient, compatible with both local and remote deployer configurations.
+    Builds an APINodeClient, handling both local and remote deployer configurations,
+    and dynamically resolves the live API endpoint URL from Deployer.
     """
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
@@ -35,19 +66,24 @@ def build_apinode_client(params):
         return dataikuapi.APINodeClient(api_url, params["api"])
 
     else:
-        # Remote deployer: build full service-level URL
+        # Attempt dynamic resolution of the active deployment URL
+        deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
+        print(f"No local apiNodes found, resolving remote deployment by ID '{deployment_id}'...")
+
+        # Fetch all deployments and look for our target
+        for deployment in api_deployer.list_deployments():
+            if deployment.id() == deployment_id:
+                settings = deployment.get_settings().get_raw()
+                if "url" in settings and settings["url"]:
+                    api_url = settings["url"]
+                    print(f"Using dynamically resolved API endpoint URL: {api_url}")
+                    return dataikuapi.APINodeClient(api_url, params["api"])
+
+        # If no deployment matched or URL not found, fallback to service-level URL
         api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
-        print(f"Using remote API service endpoint: {api_url}")
+        print(f"Fallback to static remote API service endpoint: {api_url}")
 
-        # Create API Node client with Bearer token auth
-        return dataikuapi.APINodeClient(
-            api_url,
-            params["api"],  # SDK API key = token
-            params["api_service_id"],  # service ID
-            {"Authorization": f"Bearer {params['api']}"}  # extra headers
-        )
-
-
+        return dataikuapi.APINodeClient(api_url, params["api"])
 
 
 
