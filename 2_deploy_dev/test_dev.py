@@ -51,7 +51,6 @@ import dataikuapi
 import requests
 
 def build_apinode_client(params):
-def build_apinode_client(params):
     """
     Build an APINodeClient for both local and remote deployer setups.
     Handles AKS-based API nodes by dynamically extracting the runtime URL from currentStatus.
