@@ -1,21 +1,21 @@
-import dataikuapi
-import sys
+# import dataikuapi
+# import sys
 
-host = sys.argv[1]
-apiKey = sys.argv[2]
-project = sys.argv[3]
-api_service_id = sys.argv[4]
-api_package_id = sys.argv[5]
-infra_dev_id = sys.argv[6]
-infra_prod_id = sys.argv[7]
+# host = sys.argv[1]
+# apiKey = sys.argv[2]
+# project = sys.argv[3]
+# api_service_id = sys.argv[4]
+# api_package_id = sys.argv[5]
+# infra_dev_id = sys.argv[6]
+# infra_prod_id = sys.argv[7]
 
-client = dataikuapi.DSSClient(host, apiKey)
-test_project = client.get_project(project)
+# client = dataikuapi.DSSClient(host, apiKey)
+# test_project = client.get_project(project)
 
-####################
-# Retrieve the API Service in the project
-api_service = test_project.get_api_service(api_service_id)
-print("Found API Service to package {}".format(api_service))
+# ####################
+# # Retrieve the API Service in the project
+# api_service = test_project.get_api_service(api_service_id)
+# print("Found API Service to package {}".format(api_service))
 
 ####################
 # # Create and retrieve an API package
@@ -155,15 +155,18 @@ print(f"Package downloaded locally as '{package_filename}'")
 # Upload the ZIP to the remote deployer
 
 print(f"Uploading package '{api_package_id}.zip' to remote deployer...")
-
-deploy_url = f"{remote_deployer_url}/public/api/api-deployer/services/{api_service_id}/versions/{api_package_id}"
+deploy_url = f"{remote_deployer_url}/public/api/api-deployer/services/{api_service_id}/versions"
 headers = {
     "Authorization": f"Bearer {remote_deployer_api_key}",
-    "Content-Type": "application/zip"
 }
 
-with open(package_filename, 'rb') as f:
-    response = requests.put(deploy_url, data=f, headers=headers)
+files = {
+    "file": (package_filename, open(package_filename, "rb"), "application/zip"),
+    "versionId": (None, api_package_id)
+}
+
+response = requests.post(deploy_url, files=files, headers=headers)
+
 
 if response.status_code in [200, 201]:
     print(f"Package '{api_package_id}' successfully uploaded to remote deployer")
