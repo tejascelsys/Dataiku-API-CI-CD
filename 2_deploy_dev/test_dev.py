@@ -53,46 +53,48 @@ import requests
 def build_apinode_client(params):
     """
     Build APINodeClient for both local and remote deployer situations.
-    For remote deployer (AKS API Node), extract actual API URL from deployment settings.
+    Handles AKS-based API nodes by fetching the deployed URL dynamically from currentStatus.
     """
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
 
-    # Fetch infra settings
+    # Attempt infra settings lookup
     infra = api_deployer.get_infra(params["api_dev_infra_id"])
     infra_settings = infra.get_settings().get_raw()
 
-    # 1. Local deployer (apiNodes exists)
+    # Local Deployer — use directly from apiNodes
     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
         api_url = infra_settings['apiNodes'][0]['url']
         print(f"Using local API node URL: {api_url}")
-        return dataikuapi.APINodeClient(api_url, params["api"])
-
-    # 2. Remote deployer (AKS / no apiNodes)
+        return dataikuapi.APINodeClient(api_url, params["api"])  # DSS API key OK here
+    
+    # Remote Deployer on AKS (no apiNodes key)
     else:
-        # Look up the deployment from the remote deployer by ID
         deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
         print(f"No local apiNodes found, looking up remote deployment '{deployment_id}'...")
 
         deployments = api_deployer.list_deployments()
         deployment = next((d for d in deployments if d.id() == deployment_id), None)
-
         if not deployment:
-            raise ValueError(f"Cannot find deployment with ID '{deployment_id}' to resolve API endpoint!")
+            raise ValueError(f"Cannot find deployment with ID '{deployment_id}' in this infra!")
 
-        # Retrieve the deployed API Node URL
-        settings = deployment.get_settings().get_raw()
-        api_url = settings.get("url", "").rsplit('/', 1)[0]  # Drop /predict if present
+        # Look into currentStatus for AKS-style deployments
+        status = deployment.get_status().get_raw()
+        raw_url = status.get("url") or status.get("healthCheckUrl")
+
+        if not raw_url:
+            raise ValueError(f"Unable to locate deployed URL in deployment status: {status}")
+
+        # Drop trailing /predict — APINodeClient adds endpoint_id automatically
+        api_url = raw_url.rsplit("/", 1)[0]
         print(f"Using deployed API Node endpoint: {api_url}")
 
-        # Return API Client using Bearer token for auth
+        # Return API Client with Bearer token
         return dataikuapi.APINodeClient(
             api_url,
-            params["api"],  # Bearer token used as api_key
-            extra_headers={"Authorization": f"Bearer {params['api']}"}
+            params["api"],  # token as api_key
+            extra_headers={"Authorization": f"Bearer {params['api']}"}  # Bearer header
         )
-
-
 
 
 
