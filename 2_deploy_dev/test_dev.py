@@ -1,4 +1,3 @@
-import dataikuapi
 
 
 # def build_apinode_client(params):
@@ -49,11 +48,12 @@ import dataikuapi
 
 
 import dataikuapi
+import requests
 
 def build_apinode_client(params):
     """
-    Builds an APINodeClient, handling both local and remote deployer configurations,
-    and dynamically resolves the live API endpoint URL from Deployer.
+    Builds APINodeClient, compatible with both local and remote deployer configurations.
+    Handles dynamic AKS-based 'url' resolution and constructs the full endpoint cleanly.
     """
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
@@ -65,25 +65,25 @@ def build_apinode_client(params):
         print(f"Using local API node URL: {api_url}")
         return dataikuapi.APINodeClient(api_url, params["api"])
 
-    else:
-        # Attempt dynamic resolution of the active deployment URL
-        deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
-        print(f"No local apiNodes found, resolving remote deployment by ID '{deployment_id}'...")
+    # For remote deployer (dynamic AKS URL)
+    deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
+    print(f"No local apiNodes found, resolving remote deployment by ID '{deployment_id}'...")
 
-        # Fetch all deployments and look for our target
-        for deployment in api_deployer.list_deployments():
-            if deployment.id() == deployment_id:
-                settings = deployment.get_settings().get_raw()
-                if "url" in settings and settings["url"]:
-                    api_url = settings["url"]
-                    print(f"Using dynamically resolved API endpoint URL: {api_url}")
-                    return dataikuapi.APINodeClient(api_url, params["api"])
+    # Fetch deployment URL from live Deployer
+    for deployment in api_deployer.list_deployments():
+        if deployment.id() == deployment_id:
+            settings = deployment.get_settings().get_raw()
+            if "url" in settings and settings["url"]:
+                # The 'url' is the full endpoint to predict, so remove '/predict' if it exists
+                api_url = settings["url"].rsplit("/", 1)[0]
+                print(f"Using dynamically resolved API endpoint URL: {api_url}")
+                return dataikuapi.APINodeClient(api_url, params["api"])
 
-        # If no deployment matched or URL not found, fallback to service-level URL
-        api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
-        print(f"Fallback to static remote API service endpoint: {api_url}")
+    # Fallback if no dynamic URL resolved
+    fallback_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
+    print(f"Fallback to static remote API service endpoint: {fallback_url}")
+    return dataikuapi.APINodeClient(fallback_url, params["api"])
 
-        return dataikuapi.APINodeClient(api_url, params["api"])
 
 
 
