@@ -35,17 +35,19 @@ def build_apinode_client(params):
         return dataikuapi.APINodeClient(api_url, params["api"])
 
     else:
-        # Remote deployer: build full endpoint URL
+        # Remote deployer: build full service URL (service-level URL, not endpoint)
         api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}"
         print(f"Using remote API service endpoint: {api_url}")
 
-        # Return client with Bearer token + service_id
+        # Return client with Bearer token, passing service_id explicitly
         return dataikuapi.APINodeClient(
-            base_uri=api_url,
-            api_key=params["api"],  # raw token
+            api_url,  # positional URI
+            params["api"],  # API key
             service_id=params["api_service_id"],
             extra_headers={"Authorization": f"Bearer {params['api']}"}
         )
+
+
 
 
 
