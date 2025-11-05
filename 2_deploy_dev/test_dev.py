@@ -58,42 +58,50 @@ def build_apinode_client(params):
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
 
-    # Get infra details
+    # Get deploy infra details
     infra = api_deployer.get_infra(params["api_dev_infra_id"])
     infra_settings = infra.get_settings().get_raw()
 
-    # Case 1: Local API Deployer (apiNodes array)
+    # Case 1: Local Deployer (direct URL in 'apiNodes')
     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
         api_url = infra_settings['apiNodes'][0]['url']
         print(f"Using local API node URL: {api_url}")
         return dataikuapi.APINodeClient(api_url, params["api"])
 
-    # Case 2: Remote Deployer on AKS (no apiNodes in infra)
+    # Case 2: Remote deployer on AKS (use runtime status)
     else:
         deployment_id = f"{params['api_service_id']}-on-{params['api_dev_infra_id']}"
         print(f"No local apiNodes found, looking up remote deployment '{deployment_id}'...")
 
-        # Find the specific deployment by ID
+        # Locate deployment
         deployments = api_deployer.list_deployments()
         deployment = next((d for d in deployments if d.id() == deployment_id), None)
         if not deployment:
-            raise ValueError(f"Cannot find deployment with ID '{deployment_id}'")
+            raise ValueError(f"Deployment with ID '{deployment_id}' not found in this infra!")
 
-        # Fetch dynamic endpoint from deployment status
-        status = deployment.get_status()  # This is already a dict
+        print(f"Found deployment '{deployment_id}', fetching live status...")
+
+        # Get raw status dict
+        try:
+            status = deployment.get_status().raw  # Works across most Dataiku versions
+        except AttributeError:
+            status = deployment.get_status().get_raw()  # Fallback for older SDKs
+
+        # Resolve actual URL used by AKS-based node
         api_url = status.get("url") or status.get("healthCheckUrl")
         if not api_url:
-            raise ValueError(f"Could not resolve runtime API node URL from status: {status}")
+            raise ValueError(f"Could NOT resolve URL from deployment status! Raw status: {status}")
 
-        # Remove /predict if found (APINodeClient appends it programmatically)
+        # Remove /predict if appended (we only need base URI)
         api_url = api_url.rsplit("/", 1)[0]
-        print(f"Using deployed API Node endpoint: {api_url}")
+        print(f"Using deployed API node URL: {api_url}")
 
         return dataikuapi.APINodeClient(
             api_url,
             params["api"],
             extra_headers={"Authorization": f"Bearer {params['api']}"}
         )
+
 
 
 
