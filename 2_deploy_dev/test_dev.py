@@ -1,24 +1,50 @@
 import dataikuapi
 
 
+# def build_apinode_client(params):
+#     """
+#     Builds an APINodeClient, handling both local and remote deployer configurations.
+#     """
+#     client_design = dataikuapi.DSSClient(params["host"], params["api"])
+#     api_deployer = client_design.get_apideployer()
+#     infra_settings = api_deployer.get_infra(params["api_dev_infra_id"]).get_settings().get_raw()
+
+#     # Check if this is a local deployer-based infra (apiNodes exist)
+#     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
+#         api_url = infra_settings['apiNodes'][0]['url']
+#         print(f"Using local API node URL: {api_url}")
+#     else:
+#         # Remote deployer: construct the endpoint URL
+#         api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}/{params['api_endpoint_id']}"
+#         print(f"Using remote API endpoint URL: {api_url}")
+
+#     return dataikuapi.APINodeClient(api_url, params["api"])
+
 def build_apinode_client(params):
     """
-    Builds an APINodeClient, handling both local and remote deployer configurations.
+    Builds APINodeClient, compatible with both local and remote deployer configurations.
     """
+    # Inspect API infrastructure settings
     client_design = dataikuapi.DSSClient(params["host"], params["api"])
     api_deployer = client_design.get_apideployer()
     infra_settings = api_deployer.get_infra(params["api_dev_infra_id"]).get_settings().get_raw()
 
-    # Check if this is a local deployer-based infra (apiNodes exist)
+    # If using a local deployer (inside Dataiku instance)
     if 'apiNodes' in infra_settings and len(infra_settings['apiNodes']) > 0:
         api_url = infra_settings['apiNodes'][0]['url']
         print(f"Using local API node URL: {api_url}")
+        # Local deployer uses DSS API key directly
+        return dataikuapi.APINodeClient(api_url, params["api"])
     else:
-        # Remote deployer: construct the endpoint URL
+        # Remote deployer - construct endpoint URL
         api_url = f"{params['host']}/public/api/v1/{params['api_service_id']}/{params['api_endpoint_id']}"
         print(f"Using remote API endpoint URL: {api_url}")
-
-    return dataikuapi.APINodeClient(api_url, params["api"])
+        # Use Bearer auth header for remote calls
+        return dataikuapi.APINodeClient(
+            api_url,
+            api_key=params["api"],  # passed as raw API token
+            extra_headers={"Authorization": f"Bearer {params['api']}"}  # required for remote deployer
+        )
 
 
 def test_standard_call(params):
