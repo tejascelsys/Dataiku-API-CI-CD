@@ -8,7 +8,8 @@ pipeline {
             steps {
                 cleanWs()
                 sh 'echo ${bundle_name}'
-                git credentialsId: "git_hub_ssh", url: "git@github.com:XYZ"
+                // git credentialsId: "cicdapi", url: "git@github.com:XYZ"
+                git branch: 'main', credentialsId: 'cicdapi', url: 'https://github.com/tejascelsys/Dataiku-API-CI-CD.git'
                 sh "cat requirements.txt"
                 sh "printenv"
                 withPythonEnv('python3') {
@@ -17,7 +18,7 @@ pipeline {
                 }
             }
         }
-        stage('PACK_AND_PUB') {
+        stage('PACK_AND_PUBLISH') {
             steps {
                 withPythonEnv('python3') {
                     sh "python 1_package_and_publish/run_packaging.py '${DESIGN_URL}' '${DESIGN_API_KEY}' '${DSS_PROJECT}' '${API_SERVICE_ID}' '${api_package_id}' '${API_DEV_INFRA_ID}' '${API_PROD_INFRA_ID}'"
